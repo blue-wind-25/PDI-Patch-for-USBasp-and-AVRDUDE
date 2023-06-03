@@ -14,12 +14,12 @@ https://morf.lv/playing-with-atxmega16e5-breakout<br>
 
 ATxmega programmer for $0.50<br>
 https://szulat.blogspot.com/2012/08/atxmega-programmer-for-050.html<br>
-    USBASP Firmware supporting PDI<br>
-        http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz<br>
-        http://sz.toyspring.com/usbasp-pdi-usbaspfirmware-20120816.diff<br>
-    AVRDUDE supporting USBASP with PDI (5.11svn)<br>
-        http://sz.toyspring.com/usbasp-pdi-avrdude2091-20120816.diff<br>
-        svn co svn://svn.sv.gnu.org/avrdude/trunk -r 1092<br>
+&nbsp;&nbsp;&nbsp;&nbsp;USBASP Firmware supporting PDI<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http://sz.toyspring.com/usbasp-pdi-usbaspfirmware-20120816.diff<br>
+&nbsp;&nbsp;&nbsp;&nbsp;AVRDUDE supporting USBASP with PDI (5.11svn)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http://sz.toyspring.com/usbasp-pdi-avrdude2091-20120816.diff<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;svn co svn://svn.sv.gnu.org/avrdude/trunk -r 1092<br>
 
 Как прошить XMEGA при помощи USBASP программатора<br>
 How to flash XMEGA using USBASP programmer<br>
