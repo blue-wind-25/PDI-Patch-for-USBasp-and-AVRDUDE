@@ -9,31 +9,31 @@ The original PDI patches for USBasp and AVRDUDE are old and contain bugs.
 
 ### Links to Web Pages Containing Informations about the Original Source Code and Patches
 
-Playing with AtXmega16e5 breakout - Converting USBASP to support PDI
-https://morf.lv/playing-with-atxmega16e5-breakout
+Playing with AtXmega16e5 breakout - Converting USBASP to support PDI<br>
+https://morf.lv/playing-with-atxmega16e5-breakout<br>
 
-ATxmega programmer for $0.50
-https://szulat.blogspot.com/2012/08/atxmega-programmer-for-050.html
-    USBASP Firmware supporting PDI
-        http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz
-        http://sz.toyspring.com/usbasp-pdi-usbaspfirmware-20120816.diff
-    AVRDUDE supporting USBASP with PDI (5.11svn)
-        http://sz.toyspring.com/usbasp-pdi-avrdude2091-20120816.diff
-        svn co svn://svn.sv.gnu.org/avrdude/trunk -r 1092
+ATxmega programmer for $0.50<br>
+https://szulat.blogspot.com/2012/08/atxmega-programmer-for-050.html<br>
+    USBASP Firmware supporting PDI<br>
+        http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz<br>
+        http://sz.toyspring.com/usbasp-pdi-usbaspfirmware-20120816.diff<br>
+    AVRDUDE supporting USBASP with PDI (5.11svn)<br>
+        http://sz.toyspring.com/usbasp-pdi-avrdude2091-20120816.diff<br>
+        svn co svn://svn.sv.gnu.org/avrdude/trunk -r 1092<br>
 
-Как прошить XMEGA при помощи USBASP программатора
-How to flash XMEGA using USBASP programmer
-https://service4u.narod.ru/html/atxmega_avrdude.html
-https://service4u.narod.ru/assets/xmega/usbasp_pdi_atmega8_20120816.hex
-https://service4u.narod.ru/assets/xmega/avrdude-r1092-usbasp-pdi.zip
+Как прошить XMEGA при помощи USBASP программатора<br>
+How to flash XMEGA using USBASP programmer<br>
+https://service4u.narod.ru/html/atxmega_avrdude.html<br>
+https://service4u.narod.ru/assets/xmega/usbasp_pdi_atmega8_20120816.hex<br>
+https://service4u.narod.ru/assets/xmega/avrdude-r1092-usbasp-pdi.zip<br>
 
-USBASP-PDI
-Modified USBASP to work as a PDI Programmer
-https://github.com/nieldk/USBASP-PDI
-https://github.com/nieldk/USBASP-PDI/tree/master/bin/firmware
+USBASP-PDI<br>
+Modified USBASP to work as a PDI Programmer<br>
+https://github.com/nieldk/USBASP-PDI<br>
+https://github.com/nieldk/USBASP-PDI/tree/master/bin/firmware<br>
 
-AVRDUDE 6.3 for USBASP-PDI
-https://github.com/nieldk/avrdude
+AVRDUDE 6.3 for USBASP-PDI<br>
+https://github.com/nieldk/avrdude<br>
 
 ---
 
