@@ -1,0 +1,17 @@
+This patch is originally from:
+    https://github.com/nieldk/avrdude
+
+How to apply patch:
+    wget https://github.com/avrdudes/avrdude/archive/refs/tags/v7.1.tar.gz
+    tar xvf v7.1.tar.gz
+    cd avrdude-7.1
+    patch -p1 < ../avrdude-7.1-usbasp-pdi-patch.diff
+
+How to build:
+    cd src
+    ./bootstrap
+    mkdir build
+    cd build
+    ../configure --prefix=/opt/avrdude-7.1-usbasp-pdi
+    make
+    sudo make install

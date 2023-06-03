@@ -1,0 +1,794 @@
+diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
+--- avrdude-7.1/src/usbasp.c	2023-01-09 04:28:14.000000000 +0700
++++ avrdude-7.1-usbasp-pdi/src/usbasp.c	2023-06-01 06:50:24.000000000 +0700
+@@ -40,6 +40,8 @@
+ #include "usbasp.h"
+ #include "usbdevs.h"
+ 
++#include "xmega_pdi.h"
++
+ #if defined(HAVE_LIBUSB) || defined(HAVE_LIBUSB_1_0)
+ 
+ #ifdef HAVE_LIBUSB_1_0
+@@ -131,6 +133,8 @@
+ /*
+  * Private data for this programmer.
+  */
++enum UsbAspMode { ISP, TPI, PDI };
++
+ struct pdata
+ {
+ #ifdef USE_LIBUSB_1_0
+@@ -140,7 +144,7 @@
+ #endif
+   int sckfreq_hz;
+   unsigned int capabilities;
+-  int use_tpi;
++  enum UsbAspMode mode;
+   int section_e;
+   int sck_3mhz;
+ };
+@@ -199,65 +203,19 @@
+ static int usbasp_tpi_read_byte(const PROGRAMMER * pgm, const AVRPART *p, const AVRMEM *m, unsigned long addr, unsigned char *value);
+ static int usbasp_tpi_write_byte(const PROGRAMMER *pgm, const AVRPART *p, const AVRMEM *m, unsigned long addr, unsigned char data);
+ 
+-
+-// Dispatching wrappers
+-
+-static int usbasp_cmd(const PROGRAMMER *pgm, const unsigned char *cmd, unsigned char *res) {
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_cmd(pgm, cmd, res):
+-    usbasp_spi_cmd(pgm, cmd, res);
+-}
+-
+-static int usbasp_program_enable(const PROGRAMMER *pgm, const AVRPART *p) {
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_program_enable(pgm, p):
+-    usbasp_spi_program_enable(pgm, p);
+-}
+-
+-static int usbasp_chip_erase(const PROGRAMMER *pgm, const AVRPART *p) {
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_chip_erase(pgm, p):
+-    usbasp_spi_chip_erase(pgm, p);
+-}
+-
+-static int usbasp_paged_load(const PROGRAMMER *pgm, const AVRPART *p, const AVRMEM *m,
+-  unsigned int page_size, unsigned int addr, unsigned int n_bytes) {
+-
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_paged_load(pgm, p, m, page_size, addr, n_bytes):
+-    usbasp_spi_paged_load(pgm, p, m, page_size, addr, n_bytes);
+-}
+-
+-static int usbasp_paged_write(const PROGRAMMER *pgm, const AVRPART *p, const AVRMEM *m,
+-  unsigned int page_size, unsigned int addr, unsigned int n_bytes) {
+-
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_paged_write(pgm, p, m, page_size, addr, n_bytes):
+-    usbasp_spi_paged_write(pgm, p, m, page_size, addr, n_bytes);
+-}
+-
+-static int usbasp_set_sck_period(const PROGRAMMER *pgm, double sckperiod) {
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_set_sck_period(pgm, sckperiod):
+-    usbasp_spi_set_sck_period(pgm, sckperiod);
+-}
+-
+-static int usbasp_read_byte(const PROGRAMMER *pgm, const AVRPART *p, const AVRMEM *m,
+-  unsigned long addr, unsigned char * value) {
+-
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_read_byte(pgm, p, m, addr, value):
+-    avr_read_byte_default(pgm, p, m, addr, value);
+-}
+-
+-static int usbasp_write_byte(const PROGRAMMER *pgm, const AVRPART *p, const AVRMEM *m,
+-  unsigned long addr, unsigned char data) {
+-
+-  return PDATA(pgm)->use_tpi?
+-    usbasp_tpi_write_byte(pgm, p, m, addr, data):
+-    avr_write_byte_default(pgm, p, m, addr, data);
+-}
+-
++////// PDI
++static int usbasp_pdi_chip_erase(const PROGRAMMER * pgm, const AVRPART * p);
++static int usbasp_pdi_page_erase(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m, unsigned int baseaddr);
++static int usbasp_pdi_paged_load(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m,
++    unsigned int page_size,
++    unsigned int address, unsigned int n_bytes);
++static int usbasp_pdi_paged_write(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m,
++    unsigned int page_size,
++    unsigned int address, unsigned int n_bytes);
++static int usbasp_pdi_set_sck_period(const PROGRAMMER *pgm, double sckperiod);
++static int usbasp_pdi_cmd(const PROGRAMMER * pgm, const unsigned char *cmd, unsigned char *res);
++static int usbasp_pdi_read_byte(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m, unsigned long addr, unsigned char * value);
++static int usbasp_pdi_write_byte(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m, unsigned long addr, unsigned char data);
+ 
+ /* Interface - management */
+ static void usbasp_setup(PROGRAMMER * pgm)
+@@ -318,6 +276,10 @@
+   case USBASP_FUNC_TPI_READBLOCK:   return "USBASP_FUNC_TPI_READBLOCK";   break;
+   case USBASP_FUNC_TPI_WRITEBLOCK:  return "USBASP_FUNC_TPI_WRITEBLOCK";  break;
+   case USBASP_FUNC_GETCAPABILITIES: return "USBASP_FUNC_GETCAPABILITIES"; break;
++  case USBASP_FUNC_PDI_CONNECT:     return "USBASP_FUNC_PDI_CONNECT";     break;
++  case USBASP_FUNC_PDI_DISCONNECT:  return "USBASP_FUNC_PDI_DISCONNECT";  break;
++  case USBASP_FUNC_PDI_READ:        return "USBASP_FUNC_PDI_READ";        break;
++  case USBASP_FUNC_PDI_SEND:        return "USBASP_FUNC_PDI_SEND";        break;
+   default:                          return "Unknown USBASP function";     break;
+   }
+ }
+@@ -347,10 +309,10 @@
+ #ifdef USE_LIBUSB_1_0
+   nbytes = libusb_control_transfer(PDATA(pgm)->usbhandle,
+ 				   (LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | (receive << 7)) & 0xff,
+-				   functionid & 0xff, 
+-				   ((send[1] << 8) | send[0]) & 0xffff, 
+-				   ((send[3] << 8) | send[2]) & 0xffff, 
+-				   buffer, 
++				   functionid & 0xff,
++				   ((send[1] << 8) | send[0]) & 0xffff,
++				   ((send[3] << 8) | send[2]) & 0xffff,
++				   buffer,
+ 				   buffersize & 0xffff,
+ 				   5000);
+   if(nbytes < 0){
+@@ -403,7 +365,7 @@
+         didUsbInit = 1;
+         libusb_init(&ctx);
+     }
+-    
++
+     libusb_device **dev_list;
+     int dev_list_len = libusb_get_device_list(ctx, &dev_list);
+ 
+@@ -595,11 +557,19 @@
+   if (PDATA(pgm)->usbhandle!=NULL) {
+     unsigned char temp[4];
+     memset(temp, 0, sizeof(temp));
++    temp[0] = pgm->exit_reset;
+ 
+-    if (PDATA(pgm)->use_tpi) {
++    switch (PDATA(pgm)->mode)
++    {
++    case TPI:
+         usbasp_transmit(pgm, 1, USBASP_FUNC_TPI_DISCONNECT, temp, temp, sizeof(temp));
+-    } else {
++        break;
++    case ISP:
+         usbasp_transmit(pgm, 1, USBASP_FUNC_DISCONNECT, temp, temp, sizeof(temp));
++        break;
++    case PDI:
++        usbasp_transmit(pgm, 1, USBASP_FUNC_PDI_DISCONNECT, temp, temp, sizeof(temp));
++        break;
+     }
+ 
+ #ifdef USE_LIBUSB_1_0
+@@ -638,7 +608,9 @@
+ // @@@
+ 
+ /* Universal functions: for both SPI and TPI */
+-static int usbasp_initialize(const PROGRAMMER *pgm, const AVRPART *p) {
++static int usbasp_initialize(const PROGRAMMER *pgm_, const AVRPART *p) {
++  PROGRAMMER *pgm = (PROGRAMMER *) pgm_;
++
+   unsigned char temp[4];
+   unsigned char res[4];
+   IMPORT_PDATA(pgm);
+@@ -652,33 +624,82 @@
+   else
+     pdata->capabilities = 0;
+ 
+-  pdata->use_tpi = (pdata->capabilities & USBASP_CAP_TPI) && (p->prog_modes & PM_TPI);
++  pdata->mode = ISP;
++  if ((pdata->capabilities & USBASP_CAP_TPI) != 0 && (p->prog_modes & PM_TPI) != 0)
++     pdata->mode = TPI;
++  if ((pdata->capabilities & USBASP_CAP_PDI) != 0 && (p->prog_modes & PM_PDI) != 0)
++     pdata->mode = PDI;
++
+   // query support for 3 MHz SCK in UsbAsp-flash firmware
+   // https://github.com/nofeletru/UsbAsp-flash
+   pdata->sck_3mhz = ((pdata->capabilities & USBASP_CAP_3MHZ) != 0) ? 1 :0;
+ 
+-  if(pdata->use_tpi)
+-  {
+-    /* calc tpiclk delay */
+-    int dly = 1500000.0 * pgm->bitclock;
+-    if(dly < 1)
+-        dly = 1;
+-    else if(dly > 2047)
+-        dly = 2047;
+-    temp[0] = dly;
+-    temp[1] = dly >> 8;
++  int dly = 0;
+ 
+-    /* connect */
+-    usbasp_transmit(pgm, 1, USBASP_FUNC_TPI_CONNECT, temp, res, sizeof(res));
+-  }
+-  else
++  switch (pdata->mode)
+   {
+-    /* set sck period */
+-    pgm->set_sck_period(pgm, pgm->bitclock);
++  case TPI:
++     /* calc tpiclk delay */
++     dly = 1500000.0 * pgm->bitclock;
++     if (dly < 1)
++         dly = 1;
++     else if (dly > 2047)
++         dly = 2047;
++     temp[0] = dly;
++     temp[1] = dly >> 8;
++
++     /* connect */
++     usbasp_transmit(pgm, 1, USBASP_FUNC_TPI_CONNECT, temp, res, sizeof(res));
++
++     /* change interface */
++     pgm->program_enable = usbasp_tpi_program_enable;
++     pgm->chip_erase = usbasp_tpi_chip_erase;
++     pgm->cmd = usbasp_tpi_cmd;
++     pgm->read_byte = usbasp_tpi_read_byte;
++     pgm->write_byte = usbasp_tpi_write_byte;
++     pgm->paged_write = usbasp_tpi_paged_write;
++     pgm->paged_load = usbasp_tpi_paged_load;
++     pgm->set_sck_period = usbasp_tpi_set_sck_period;
++     break;
++
++  case ISP:
++     /* set sck period */
++     pgm->set_sck_period(pgm, pgm->bitclock);
++
++     /* connect to target device */
++     usbasp_transmit(pgm, 1, USBASP_FUNC_CONNECT, temp, res, sizeof(res));
++
++     /* change interface */
++     pgm->program_enable = usbasp_spi_program_enable;
++     pgm->chip_erase = usbasp_spi_chip_erase;
++     pgm->cmd = usbasp_spi_cmd;
++     pgm->read_byte = avr_read_byte_default;
++     pgm->write_byte = avr_write_byte_default;
++     pgm->paged_write = usbasp_spi_paged_write;
++     pgm->paged_load = usbasp_spi_paged_load;
++     pgm->set_sck_period = usbasp_spi_set_sck_period;
++     break;
++
++  case PDI:
++     /* change interface */
++     pgm->program_enable = NULL;
++     pgm->chip_erase = usbasp_pdi_chip_erase;
++     pgm->cmd = usbasp_pdi_cmd;
++     pgm->read_byte = usbasp_pdi_read_byte;
++     pgm->write_byte = usbasp_pdi_write_byte;
++     pgm->paged_write = usbasp_pdi_paged_write;
++     pgm->paged_load = usbasp_pdi_paged_load;
++     pgm->set_sck_period = usbasp_pdi_set_sck_period;
++     pgm->page_erase = usbasp_pdi_page_erase;
++
++     /* connect to target device */
++     int nbytes = usbasp_transmit(pgm, 1, USBASP_FUNC_PDI_CONNECT, temp, res, 1);
++     if ((nbytes == 1) && (res[0] == 0))
++         return 0;
++     return -1;
++     break;
++   }
+ 
+-    /* connect to target device */
+-    usbasp_transmit(pgm, 1, USBASP_FUNC_CONNECT, temp, res, sizeof(res));
+-  }
+ 
+   /* wait, so device is ready to receive commands */
+   usleep(100000);
+@@ -771,7 +792,7 @@
+     return -2;
+   }
+ 
+-  /* set blocksize depending on sck frequency */  
++  /* set blocksize depending on sck frequency */
+   if ((PDATA(pgm)->sckfreq_hz > 0) && (PDATA(pgm)->sckfreq_hz < 10000)) {
+      blocksize = USBASP_READBLOCKSIZE / 10;
+   } else {
+@@ -836,7 +857,7 @@
+     return -2;
+   }
+ 
+-  /* set blocksize depending on sck frequency */  
++  /* set blocksize depending on sck frequency */
+   if ((PDATA(pgm)->sckfreq_hz > 0) && (PDATA(pgm)->sckfreq_hz < 10000)) {
+      blocksize = USBASP_WRITEBLOCKSIZE / 10;
+   } else {
+@@ -874,7 +895,7 @@
+ 
+     if (n != blocksize) {
+       pmsg_error("wrong count at writing %x\n", n);
+-      return -3;        
++      return -3;
+     }
+ 
+ 
+@@ -1139,7 +1160,7 @@
+       pmsg_error("wrong reading bytes %x\n", n);
+       return -3;
+     }
+-    
++
+     readed += clen;
+     pr += clen;
+     dptr += clen;
+@@ -1204,7 +1225,7 @@
+       pmsg_error("wrong count at writing %x\n", n);
+       return -3;
+     }
+-    
++
+     writed += clen;
+     pr += clen;
+     sptr += clen;
+@@ -1249,6 +1270,281 @@
+ }
+ 
+ 
++//////////////////////////////////////////////
++
++static int usbasp_pdi_paged_load(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m,
++   unsigned int page_size,
++   unsigned int address, unsigned int n_bytes)
++{
++   //printf("pdi paged load  addr=0x%x  offset=0x%x  page_size=0x%x  bytes=0x%x\n",address,m->offset,page_size,n_bytes);
++
++   uint8_t buf[256];
++   int done = 0;
++   uint8_t *dptr = m->buf + address;
++   uint32_t addr = m->offset + address;
++
++   while (done < n_bytes)
++   {
++       int need = n_bytes - done;
++       if (need>128) need = 128;
++       int have = usbasp_transmit(pgm, 1, USBASP_FUNC_PDI_READ, (unsigned char*)&addr, buf, need);
++       if (have <= 0)
++       {
++           fprintf(stderr, "%s: paged_load failed\n", progname);
++           return -3;
++       }
++       if (have>need) have = need;
++       memmove(dptr, buf, have);
++       done += have;
++       addr += have;
++       dptr += have;
++   }
++
++   return n_bytes;
++}
++
++static void pdi_nvm_set_reg(uint8_t** cmd, uint32_t addr, uint8_t value)
++{
++   uint8_t *c = *cmd;
++   c[0] = XNVM_PDI_STS_INSTR | XNVM_PDI_LONG_ADDRESS_MASK | XNVM_PDI_BYTE_DATA_MASK;
++   memmove(c + 1, &addr, 4);
++   c[5] = value;
++   *cmd = c + 6;
++}
++
++static void pdi_set_addr(uint8_t** cmd, uint32_t addr)
++{
++   uint8_t *c = *cmd;
++   c[0] = XNVM_PDI_ST_INSTR | XNVM_PDI_LD_PTR_ADDRESS_MASK | XNVM_PDI_LONG_DATA_MASK;
++   memmove(c + 1, &addr, 4);
++   *cmd = c + 5;
++}
++
++static int usbasp_pdi_page_erase(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m, unsigned int baseaddr)
++{
++   //printf("pdi page erase 0x%lx\n",baseaddr);
++
++   int eeprom = !strcmp(m->desc, "eeprom");
++
++   uint8_t args[4] = { USBASP_PDI_WAIT_BUSY + USBASP_PDI_MARK_BUSY };
++   uint8_t cmd[20];
++   uint8_t *c = cmd;
++
++   pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CMD_REG_OFFSET,
++       eeprom ? XNVM_CMD_ERASE_EEPROM_PAGE : XNVM_CMD_ERASE_FLASH_PAGE);
++   pdi_set_addr(&c, baseaddr + m->offset);
++   *(c++) = XNVM_PDI_ST_INSTR | XNVM_PDI_LD_PTR_STAR_INC_MASK | XNVM_PDI_BYTE_DATA_MASK;
++   *(c++) = 0;
++
++   int n = c - cmd;
++   if (usbasp_transmit(pgm, 0, USBASP_FUNC_PDI_SEND, args, cmd, n) != n)
++   {
++       fprintf(stderr, "%s: page_erase failed\n", progname);
++       return -1;
++   }
++   else
++       usleep(p->chip_erase_delay);
++
++   return 0;
++
++   /*
++   uint8_t pdi[20]={USBASP_PDI_WAIT_BUSY+USBASP_PDI_HINT_BUSY,
++   XNVM_PDI_STS_INSTR | XNVM_PDI_LONG_ADDRESS_MASK | XNVM_PDI_BYTE_DATA_MASK,
++   0,0,0,0, //2 - cmd reg addr
++   eeprom ? XNVM_CMD_ERASE_EEPROM_PAGE : XNVM_CMD_ERASE_FLASH_PAGE,//6
++
++   XNVM_PDI_ST_INSTR | XNVM_PDI_LD_PTR_ADDRESS_MASK | XNVM_PDI_LONG_DATA_MASK,
++   0,0,0,0,  //8 - base_addr
++   XNVM_PDI_ST_INSTR | XNVM_PDI_LD_PTR_STAR_INC_MASK | XNVM_PDI_BYTE_DATA_MASK,
++   0}; //13
++
++   uint32_t cmd_reg_addr=XNVM_DATA_BASE+XNVM_CONTROLLER_BASE+XNVM_CONTROLLER_CMD_REG_OFFSET;
++   memmove(pdi+2,&cmd_reg_addr,4);
++   uint32_t base_addr=baseaddr+m->offset;
++   memmove(pdi+8,&base_addr,4);
++
++   if (usbasp_transmit(pgm, 0, USBASP_FUNC_PDI_SEND, cmd, pdi, 14)==14)
++   {
++   usleep(p->chip_erase_delay);
++   return 0;
++   }
++
++   return -1;
++   */
++
++}
++
++static int usbasp_pdi_chip_erase(const PROGRAMMER * pgm, const AVRPART * p)
++{
++   //printf("pdi chip erase\n");
++   uint8_t args[4] = { USBASP_PDI_WAIT_BUSY + USBASP_PDI_MARK_BUSY };
++   uint8_t cmd[20];
++   uint8_t *c = cmd;
++
++   pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CMD_REG_OFFSET, XNVM_CMD_CHIP_ERASE);
++   pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CTRLA_REG_OFFSET, XNVM_CTRLA_CMDEX);
++
++   int n = c - cmd;
++   if (usbasp_transmit(pgm, 0, USBASP_FUNC_PDI_SEND, args, cmd, n) != n)
++   {
++       fprintf(stderr, "%s: chip_erase failed\n", progname);
++       return -1;
++   }
++   else
++       usleep(p->chip_erase_delay);
++
++   return 0;
++}
++
++
++static int usbasp_pdi_paged_write(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m,
++   unsigned int page_size,
++   unsigned int address, unsigned int n_bytes)
++{
++   //printf("pdi paged write  addr=0x%x  offset=0x%x  page_size=0x%x  bytes=0x%x\n",address,m->offset,page_size,n_bytes);
++
++   unsigned char* sptr;
++   int remaining = n_bytes;
++
++   uint32_t a = m->offset + address;
++   sptr = m->buf + address;
++   int eeprom = !strcmp(m->desc, "eeprom");
++
++#define MAXBLOCK 64
++   uint8_t args[4] = { 0 };
++   uint8_t cmd[100];
++   uint8_t* c;
++   int n;
++
++   c = cmd;
++   pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CMD_REG_OFFSET, eeprom ? XNVM_CMD_ERASE_EEPROM_PAGE_BUFFER : XNVM_CMD_ERASE_FLASH_PAGE_BUFFER);
++   pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CTRLA_REG_OFFSET, XNVM_CTRLA_CMDEX);
++   n = c - cmd;
++   //printf("pdi send erase buf\n");
++   args[0] = USBASP_PDI_WAIT_BUSY + USBASP_PDI_MARK_BUSY;
++   if (usbasp_transmit(pgm, 0, USBASP_FUNC_PDI_SEND, args, cmd, n) != n)
++       goto fail;
++
++   while (remaining > 0)
++   {
++       int bsize = remaining;
++       if (bsize > MAXBLOCK)
++           bsize = MAXBLOCK;
++       remaining -= MAXBLOCK;
++
++       c = cmd;
++       pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CMD_REG_OFFSET, eeprom ? XNVM_CMD_LOAD_EEPROM_PAGE_BUFFER : XNVM_CMD_LOAD_FLASH_PAGE_BUFFER);
++       pdi_set_addr(&c, a);
++       *(c++) = XNVM_PDI_REPEAT_INSTR | XNVM_PDI_BYTE_DATA_MASK;
++       *(c++) = bsize - 1;
++       *(c++) = XNVM_PDI_ST_INSTR | XNVM_PDI_LD_PTR_STAR_INC_MASK | XNVM_PDI_BYTE_DATA_MASK;
++       memmove(c, sptr, bsize); c += bsize;
++
++       args[0] = USBASP_PDI_WAIT_BUSY;
++       n = c - cmd;
++       //  printf("pdi send load buf 0x%lx\n",a);
++       if (usbasp_transmit(pgm, 0, USBASP_FUNC_PDI_SEND, args, cmd, n) != n)
++           goto fail;
++
++       a += bsize;
++       sptr += bsize;
++   }
++
++   c = cmd;
++   pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CMD_REG_OFFSET, eeprom ? XNVM_CMD_WRITE_EEPROM_PAGE : XNVM_CMD_WRITE_FLASH_PAGE);
++   a = m->offset + address;
++   pdi_set_addr(&c, a);
++   *(c++) = XNVM_PDI_ST_INSTR | XNVM_PDI_LD_PTR_STAR_INC_MASK | XNVM_PDI_BYTE_DATA_MASK;
++   *(c++) = 0;
++
++   args[0] = USBASP_PDI_WAIT_BUSY + USBASP_PDI_MARK_BUSY;
++   n = c - cmd;
++   //printf("pdi send write page 0x%lx\n",a);
++   if (usbasp_transmit(pgm, 0, USBASP_FUNC_PDI_SEND, args, cmd, n) != n)
++       goto fail;
++
++   return n_bytes;
++
++fail:
++   fprintf(stderr, "%s: paged_write failed\n", progname);
++   return -3;
++
++}
++
++static int usbasp_pdi_set_sck_period(const PROGRAMMER *pgm, double sckperiod)
++{
++   //printf("pdi set sck period (NOP)\n");
++   return 0;
++}
++
++static int usbasp_pdi_cmd(const PROGRAMMER * pgm, const unsigned char *cmd, unsigned char *res)
++{
++   fprintf(stderr, "pdi cmd not implemented\n");
++   return -1;
++}
++
++static int usbasp_pdi_read_byte(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m, unsigned long addr, unsigned char * value)
++{
++   //printf("pdi read byte:  addr=0x%lx offset=0x%x\n",addr,m->offset);
++
++   uint32_t a = m->offset + addr;
++   if (usbasp_transmit(pgm, 1, USBASP_FUNC_PDI_READ, (unsigned char*)&a, value, 1) == 1)
++       return 0;
++   return -1;
++}
++
++static int usbasp_pdi_write_byte(const PROGRAMMER * pgm, const AVRPART * p, const AVRMEM * m, unsigned long addr, unsigned char data)
++{
++   //printf("pdi write byte 0x%lx 0x%x\n",addr+m->offset,data);
++
++   uint8_t args[4] = { USBASP_PDI_WAIT_BUSY + USBASP_PDI_MARK_BUSY };
++   uint8_t cmd[20];
++   uint8_t *c = cmd;
++   uint32_t a = addr + m->offset;
++
++   pdi_nvm_set_reg(&c, XNVM_DATA_BASE + XNVM_CONTROLLER_BASE + XNVM_CONTROLLER_CMD_REG_OFFSET, XNVM_CMD_WRITE_FUSE);
++   *(c++) = XNVM_PDI_STS_INSTR | XNVM_PDI_LONG_ADDRESS_MASK | XNVM_PDI_BYTE_DATA_MASK;
++   memmove(c, &a, 4); c += 4;
++   *(c++) = data;
++
++   int n = c - cmd;
++   if (usbasp_transmit(pgm, 0, USBASP_FUNC_PDI_SEND, args, cmd, n) != n)
++   {
++       fprintf(stderr, "%s: write_byte failed\n", progname);
++       return -1;
++   }
++   return 0;
++}
++
++/////////////////////////////////////////////
++
++/*
++* parse the -E string (subset of par.c/par_parseexitspecs)
++*/
++static int usbasp_parseexitspecs(PROGRAMMER * pgm, const char *s_)
++{
++   char* s = strdup(s_);
++
++   char *cp;
++
++   while ((cp = strtok(s, ","))) {
++       if (strcmp(cp, "reset") == 0) {
++           pgm->exit_reset = EXIT_RESET_ENABLED;
++       }
++       else if (strcmp(cp, "noreset") == 0) {
++           pgm->exit_reset = EXIT_RESET_DISABLED;
++       }
++       else {
++           free(s);
++           return -1;
++       }
++       s = 0; /* strtok() should be called with the actual string only once */
++   }
++
++   free(s);
++   return 0;
++}
++
+ void usbasp_initpgm(PROGRAMMER *pgm) {
+   strcpy(pgm->type, "usbasp");
+ 
+@@ -1260,25 +1556,25 @@
+   pgm->display        = usbasp_display;
+   pgm->enable         = usbasp_enable;
+   pgm->disable        = usbasp_disable;
+-  pgm->program_enable = usbasp_program_enable;
+-  pgm->chip_erase     = usbasp_chip_erase;
+-  pgm->cmd            = usbasp_cmd;
++  pgm->program_enable = usbasp_spi_program_enable;
++  pgm->chip_erase     = usbasp_spi_chip_erase;
++  pgm->cmd            = usbasp_spi_cmd;
+   pgm->open           = usbasp_open;
+   pgm->close          = usbasp_close;
+-  pgm->read_byte      = usbasp_read_byte;
+-  pgm->write_byte     = usbasp_write_byte;
++  pgm->read_byte      = avr_read_byte_default;
++  pgm->write_byte     = avr_write_byte_default;
+ 
+   /*
+    * optional functions
+    */
+ 
+-  pgm->paged_write    = usbasp_paged_write;
+-  pgm->paged_load     = usbasp_paged_load;
++  pgm->paged_write    = usbasp_spi_paged_write;
++  pgm->paged_load     = usbasp_spi_paged_load;
+   pgm->setup          = usbasp_setup;
+   pgm->teardown       = usbasp_teardown;
+-  pgm->set_sck_period = usbasp_set_sck_period;
++  pgm->set_sck_period = usbasp_spi_set_sck_period;
++  pgm->parseexitspecs = usbasp_parseexitspecs;
+   pgm->parseextparams = usbasp_parseextparms;
+-
+ }
+ 
+ 
+diff -ruN avrdude-7.1/src/usbasp.h avrdude-7.1-usbasp-pdi/src/usbasp.h
+--- avrdude-7.1/src/usbasp.h	2023-01-09 04:28:14.000000000 +0700
++++ avrdude-7.1-usbasp-pdi/src/usbasp.h	2023-06-01 06:14:33.000000000 +0700
+@@ -21,6 +21,16 @@
+ #ifndef usbasp_h
+ #define usbasp_h
+ 
++/* USB identifiers */
++#define USBASP_SHARED_VID   0x16C0  /* VOTI */
++#define USBASP_SHARED_PID   0x05DC  /* Obdev's free shared PID */
++
++#define USBASP_OLD_VID      0x03EB  /* ATMEL */
++#define USBASP_OLD_PID      0xC7B4  /* (unoffical) USBasp */
++
++#define USBASP_NIBOBEE_VID  0x16C0  /* VOTI */
++#define USBASP_NIBOBEE_PID  0x092F  /* NIBObee PID */
++
+ /* USB function call identifiers */
+ #define USBASP_FUNC_CONNECT    1
+ #define USBASP_FUNC_DISCONNECT 2
+@@ -40,8 +50,14 @@
+ #define USBASP_FUNC_TPI_WRITEBLOCK   16
+ #define USBASP_FUNC_GETCAPABILITIES 127
+ 
++#define USBASP_FUNC_PDI_CONNECT    17
++#define USBASP_FUNC_PDI_DISCONNECT 18
++#define USBASP_FUNC_PDI_READ       19
++#define USBASP_FUNC_PDI_SEND       20
++
+ /* USBASP capabilities */
+ #define USBASP_CAP_TPI    0x01
++#define USBASP_CAP_PDI    0x02
+ #define USBASP_CAP_3MHZ   (1 << 24)   // 3 MHz SCK in UsbAsp-flash firmware
+ 
+ /* Block mode flags */
+@@ -52,6 +68,10 @@
+ #define USBASP_READBLOCKSIZE   200
+ #define USBASP_WRITEBLOCKSIZE  200
+ 
++/* PDI flags */
++#define USBASP_PDI_WAIT_BUSY   1
++#define USBASP_PDI_MARK_BUSY   2
++
+ /* ISP SCK speed identifiers */
+ #define USBASP_ISP_SCK_AUTO   0
+ #define USBASP_ISP_SCK_0_5    1   /* 500 Hz */
+diff -ruN avrdude-7.1/src/xmega_pdi.h avrdude-7.1-usbasp-pdi/src/xmega_pdi.h
+--- avrdude-7.1/src/xmega_pdi.h	1970-01-01 07:00:00.000000000 +0700
++++ avrdude-7.1-usbasp-pdi/src/xmega_pdi.h	2023-05-28 06:13:25.000000000 +0700
+@@ -0,0 +1,101 @@
++#ifndef _XMEGA_PDI_H_
++#define _XMEGA_PDI_H_
++
++#define XNVM_PDI_LDS_INSTR    0x00 //!< LDS instruction.
++#define XNVM_PDI_STS_INSTR    0x40 //!< STS instruction.
++#define XNVM_PDI_LD_INSTR     0x20 //!< LD instruction.
++#define XNVM_PDI_ST_INSTR     0x60 //!< ST instruction.
++#define XNVM_PDI_LDCS_INSTR   0x80 //!< LDCS instruction.
++#define XNVM_PDI_STCS_INSTR   0xC0 //!< STCS instruction.
++#define XNVM_PDI_REPEAT_INSTR 0xA0 //!< REPEAT instruction.
++#define XNVM_PDI_KEY_INSTR    0xE0 //!< KEY instruction.
++
++/** Byte size address mask for LDS and STS instruction */
++#define XNVM_PDI_BYTE_ADDRESS_MASK 0x00
++/** Word size address mask for LDS and STS instruction */
++#define XNVM_PDI_WORD_ADDRESS_MASK 0x04
++/** 3 bytes size address mask for LDS and STS instruction */
++#define XNVM_PDI_3BYTES_ADDRESS_MASK 0x08
++/** Long size address mask for LDS and STS instruction */
++#define XNVM_PDI_LONG_ADDRESS_MASK 0x0C
++/** Byte size data mask for LDS and STS instruction */
++#define XNVM_PDI_BYTE_DATA_MASK 0x00
++/** Word size data mask for LDS and STS instruction */
++#define XNVM_PDI_WORD_DATA_MASK 0x01
++/** 3 bytes size data mask for LDS and STS instruction */
++#define XNVM_PDI_3BYTES_DATA_MASK 0x02
++/** Long size data mask for LDS and STS instruction */
++#define XNVM_PDI_LONG_DATA_MASK 0x03
++/** Byte size address mask for LDS and STS instruction */
++#define XNVM_PDI_LD_PTR_STAR_MASK 0x00
++/** Word size address mask for LDS and STS instruction */
++#define XNVM_PDI_LD_PTR_STAR_INC_MASK 0x04
++/** 3 bytes size address mask for LDS and STS instruction */
++#define XNVM_PDI_LD_PTR_ADDRESS_MASK 0x08
++
++#define XNVM_CMD_NOP                         0x00 //!< No Operation.
++#define XNVM_CMD_CHIP_ERASE                  0x40 //!< Chip Erase.
++#define XNVM_CMD_READ_NVM_PDI                0x43 //!< Read NVM PDI.
++#define XNVM_CMD_LOAD_FLASH_PAGE_BUFFER      0x23 //!< Load Flash Page Buffer.
++#define XNVM_CMD_ERASE_FLASH_PAGE_BUFFER     0x26 //!< Erase Flash Page Buffer.
++#define XNVM_CMD_ERASE_FLASH_PAGE            0x2B //!< Erase Flash Page.
++#define XNVM_CMD_WRITE_FLASH_PAGE            0x2E //!< Flash Page Write.
++#define XNVM_CMD_ERASE_AND_WRITE_FLASH_PAGE  0x2F //!< Erase & Write Flash Page.
++#define XNVM_CMD_CALC_CRC_ON_FLASH           0x78 //!< Flash CRC.
++
++#define XNVM_CMD_ERASE_APP_SECTION           0x20 //!< Erase Application Section.
++#define XNVM_CMD_ERASE_APP_PAGE              0x22 //!< Erase Application Section.
++#define XNVM_CMD_WRITE_APP_SECTION           0x24 //!< Write Application Section.
++#define XNVM_CMD_ERASE_AND_WRITE_APP_SECTION 0x25 //!< Erase & Write Application Section Page.
++#define XNVM_CMD_CALC_CRC_APP_SECTION        0x38 //!< Application Section CRC.
++
++#define XNVM_CMD_ERASE_BOOT_SECTION          0x68 //!< Erase Boot Section.
++#define XNVM_CMD_ERASE_BOOT_PAGE             0x2A //!< Erase Boot Loader Section Page.
++#define XNVM_CMD_WRITE_BOOT_PAGE             0x2C //!< Write Boot Loader Section Page.
++#define XNVM_CMD_ERASE_AND_WRITE_BOOT_PAGE   0x2D //!< Erase & Write Boot Loader Section Page.
++#define XNVM_CMD_CALC_CRC_BOOT_SECTION       0x39 //!< Boot Loader Section CRC.
++
++#define XNVM_CMD_READ_USER_SIGN              0x03 //!< Read User Signature Row.
++#define XNVM_CMD_ERASE_USER_SIGN             0x18 //!< Erase User Signature Row.
++#define XNVM_CMD_WRITE_USER_SIGN             0x1A //!< Write User Signature Row.
++#define XNVM_CMD_READ_CALIB_ROW              0x02 //!< Read Calibration Row.
++
++#define XNVM_CMD_READ_FUSE                   0x07 //!< Read Fuse.
++#define XNVM_CMD_WRITE_FUSE                  0x4C //!< Write Fuse.
++#define XNVM_CMD_WRITE_LOCK_BITS             0x08 //!< Write Lock Bits.
++
++#define XNVM_CMD_LOAD_EEPROM_PAGE_BUFFER     0x33 //!< Load EEPROM Page Buffer.
++#define XNVM_CMD_ERASE_EEPROM_PAGE_BUFFER    0x36 //!< Erase EEPROM Page Buffer.
++
++#define XNVM_CMD_ERASE_EEPROM                0x30 //!< Erase EEPROM.
++#define XNVM_CMD_ERASE_EEPROM_PAGE           0x32 //!< Erase EEPROM Page.
++#define XNVM_CMD_WRITE_EEPROM_PAGE           0x34 //!< Write EEPROM Page.
++#define XNVM_CMD_ERASE_AND_WRITE_EEPROM      0x35 //!< Erase & Write EEPROM Page.
++#define XNVM_CMD_READ_EEPROM                 0x06 //!< Read EEPROM.
++
++#define XNVM_FLASH_BASE                 0x0800000 //!< Adress where the flash starts.
++#define XNVM_EEPROM_BASE                0x08C0000 //!< Address where eeprom starts.
++#define XNVM_FUSE_BASE                  0x08F0020 //!< Address where fuses start.
++#define XNVM_DATA_BASE                  0x1000000 //!< Address where data region starts.
++#define XNVM_APPL_BASE            XNVM_FLASH_BASE //!< Addres where application section starts.
++#define XNVM_CALIBRATION_BASE          0x008E0200 //!< Address where calibration row starts.
++#define XNVM_SIGNATURE_BASE            0x008E0400 //!< Address where signature bytes start.
++
++#define XNVM_FLASH_PAGE_SIZE			512			//
++
++#define XNVM_CONTROLLER_BASE 0x01C0               //!< NVM Controller register base address.
++#define XNVM_CONTROLLER_CMD_REG_OFFSET 0x0A       //!< NVM Controller Command Register offset.
++#define XNVM_CONTROLLER_STATUS_REG_OFFSET 0x0F    //!< NVM Controller Status Register offset.
++#define XNVM_CONTROLLER_CTRLA_REG_OFFSET 0x0B     //!< NVM Controller Control Register A offset.
++
++#define XNVM_CTRLA_CMDEX (1 << 0)                 //!< CMDEX bit offset.
++#define XNVM_NVMEN (1 << 1)                       //!< NVMEN bit offset.
++#define XNVM_NVM_BUSY (1 << 7)                    //!< NVMBUSY bit offset.
++
++#define XOCD_STATUS_REGISTER_ADDRESS 0x00         //!< PDI status register address.
++#define XOCD_RESET_REGISTER_ADDRESS  0x01         //!< PDI reset register address.
++#define XOCD_RESET_SIGNATURE         0x59         //!< PDI reset Signature.
++#define XOCD_FCMR_ADDRESS 0x05
++#define XOCD_CTRL_REGISTER_ADDRESS  0x02
++
++#endif
+\ No newline at end of file
