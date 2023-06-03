@@ -1,0 +1,24 @@
+USBasp Mods for PDI programming
+https://skeatz.github.io/FabPDI/usbasp-mods.html
+
+ATxmega Programmer for $0.50
+http://szulat.blogspot.com/2012/08/atxmega-programmer-for-050.html
+    http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz
+    http://sz.toyspring.com/usbasp-pdi-usbaspfirmware-20120816.diff
+
+Programming Xmega with USBasp & AVRDUDE
+https://ketturi.kapsi.fi/2013/05/programming-xmega-with-usbasp-avrdude
+
+----------------------------------------------------------------------------------------------------
+
+How to apply patch:
+    wget http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz
+    tar xvf usbasp.2011-05-28.tar.gz
+    cd usbasp.2011-05-28
+    patch -p1 < ../usbasp-pdi-usbaspfirmware-20120816-FIXED.diff
+
+How to build and flash:
+    cd firmware
+    make TARGET=atmega8 main.hex
+    avrdude -c usbasp -B 1 -p m8 -e -V -U flash:w:main.hex:i
+
