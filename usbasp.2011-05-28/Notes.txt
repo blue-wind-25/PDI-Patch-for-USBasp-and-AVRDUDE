@@ -9,6 +9,11 @@ http://szulat.blogspot.com/2012/08/atxmega-programmer-for-050.html
 Programming Xmega with USBasp & AVRDUDE
 https://ketturi.kapsi.fi/2013/05/programming-xmega-with-usbasp-avrdude
 
+USBasp SPI Fix
+    https://openrcforums.com/forum/viewtopic.php?t=1363
+    https://openrcforums.com/forum/viewtopic.php?p=19315#p19315
+    https://openrcforums.com/forum/download/file.php?id=1726
+
 ----------------------------------------------------------------------------------------------------
 
 How to apply patch:
@@ -20,5 +25,5 @@ How to apply patch:
 How to build and flash:
     cd firmware
     make TARGET=atmega8 main.hex
-    avrdude -c usbasp -B 1 -p m8 -e -V -U flash:w:main.hex:i
+    avrdude -c usbasp -B 1 -p m8 -e -D -U flash:w:main.hex:i
 
