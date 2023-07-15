@@ -1,29 +1,66 @@
+====================================================================================================
+General Notices
+====================================================================================================
+
 USBasp Mods for PDI programming
-https://skeatz.github.io/FabPDI/usbasp-mods.html
+    https://skeatz.github.io/FabPDI/usbasp-mods.html
 
 ATxmega Programmer for $0.50
-http://szulat.blogspot.com/2012/08/atxmega-programmer-for-050.html
-    http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz
-    http://sz.toyspring.com/usbasp-pdi-usbaspfirmware-20120816.diff
+    http://szulat.blogspot.com/2012/08/atxmega-programmer-for-050.html
+        http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz
+        http://sz.toyspring.com/usbasp-pdi-usbaspfirmware-20120816.diff
 
 Programming Xmega with USBasp & AVRDUDE
-https://ketturi.kapsi.fi/2013/05/programming-xmega-with-usbasp-avrdude
+    https://ketturi.kapsi.fi/2013/05/programming-xmega-with-usbasp-avrdude
 
 USBasp SPI Fix
     https://openrcforums.com/forum/viewtopic.php?t=1363
     https://openrcforums.com/forum/viewtopic.php?p=19315#p19315
     https://openrcforums.com/forum/download/file.php?id=1726
 
-----------------------------------------------------------------------------------------------------
+====================================================================================================
+Building and Flashing the Firmware
+====================================================================================================
 
-How to apply patch:
-    wget http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz
+Get the source:
+    cd work
+    wget --no-check-certificate http://www.fischl.de/usbasp/usbasp.2011-05-28.tar.gz
     tar xvf usbasp.2011-05-28.tar.gz
-    cd usbasp.2011-05-28
-    patch -p1 < ../usbasp-pdi-usbaspfirmware-20120816-FIXED.diff
+or extract from the one included in this repository:
+    cd work
+    tar xvf ../usbasp.2011-05-28.tar.gz
 
-How to build and flash:
+Apply the patch:
+    cd usbasp.2011-05-28
+    patch -p1 < ../../usbasp-pdi-usbaspfirmware-20120816-FIXED.diff
+
+Build and flash:
     cd firmware
     make TARGET=atmega8 main.hex
     avrdude -c usbasp -B 1 -p m8 -e -D -U flash:w:main.hex:i
 
+Return to the parent directory:
+    cd ../../../
+
+----------------------------------------------------------------------------------------------------
+
+You can also flash the precompiled HEX file:
+    avrdude -c usbasp -B 1 -p m8 -e -D -U flash:w:hex/www.fischl.de_usbasp.atmega8.2011-05-28-pdi-FIXED.hex:i
+
+====================================================================================================
+Modifying the Firmware
+====================================================================================================
+
+If you want to recreate or modify the patch:
+    cd work
+    tar xvf ../usbasp.2011-05-28.tar.gz
+    cp -Rv usbasp.2011-05-28 usbasp.2011-05-28-pdi
+    cd usbasp.2011-05-28-pdi
+    patch -p1 < ../../usbasp-pdi-usbaspfirmware-20120816-FIXED.diff
+    ...
+    ... (modify some files and ensure all generated files are deleted)
+    ...
+    cd ..
+    diff -ruN usbasp.2011-05-28 usbasp.2011-05-28-pdi > my_patch.diff
+
+====================================================================================================

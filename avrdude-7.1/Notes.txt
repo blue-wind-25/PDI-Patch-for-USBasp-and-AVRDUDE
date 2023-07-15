@@ -1,13 +1,28 @@
+====================================================================================================
+General Notices
+====================================================================================================
+
 This patch is originally from:
     https://github.com/nieldk/avrdude
 
-How to apply patch:
+In the instructions below, please adjust the version number '7.1' as required.
+
+====================================================================================================
+Building the Program
+====================================================================================================
+
+Get the source:
+    cd work
     wget https://github.com/avrdudes/avrdude/archive/refs/tags/v7.1.tar.gz
     tar xvf v7.1.tar.gz
-    cd avrdude-7.1
-    patch -p1 < ../avrdude-7.1-usbasp-pdi-patch.diff
+or extract from the one included in this repository:
+    tar xvf ../avrdude-7.1.tar.gz
 
-How to build:
+Apply the patch:
+    cd avrdude-7.1
+    patch -p1 < ../../avrdude-7.1-usbasp-pdi-patch.diff
+
+Build and install:
     cd src
     ./bootstrap
     mkdir build
@@ -15,3 +30,24 @@ How to build:
     ../configure --prefix=/opt/avrdude-7.1-usbasp-pdi
     make
     sudo make install
+
+Return to the parent directory:
+    cd ../../../../
+
+====================================================================================================
+Modifying the Program
+====================================================================================================
+
+If you want to recreate or modify the patch:
+    cd work
+    tar xvf ../avrdude-7.1.tar.gz
+    cp -Rv avrdude-7.1 avrdude-7.1-usbasp-pdi
+    cd avrdude-7.1-usbasp-pdi
+    patch -p1 < ../../avrdude-7.1-usbasp-pdi-patch.diff
+    ...
+    ... (modify some files and ensure all generated files are deleted)
+    ...
+    cd ..
+    diff -ruN avrdude-7.1 avrdude-7.1-usbasp-pdi > my_patch.diff
+
+====================================================================================================
