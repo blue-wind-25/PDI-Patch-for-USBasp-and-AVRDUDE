@@ -38,6 +38,10 @@ Build and flash:
     cd firmware
     make TARGET=atmega8 main.hex
     avrdude -c usbasp -B 1 -p m8 -e -D -U flash:w:main.hex:i
+or:
+    cd firmware
+    make TARGET=atmega88 main.hex
+    avrdude -c usbasp -B 1 -p m88 -e -D -U flash:w:main.hex:i
 
 Return to the parent directory:
     cd ../../../
@@ -46,6 +50,8 @@ Return to the parent directory:
 
 You can also flash the precompiled HEX file:
     avrdude -c usbasp -B 1 -p m8 -e -D -U flash:w:hex/www.fischl.de_usbasp.atmega8.2011-05-28-pdi-FIXED.hex:i
+or:
+    avrdude -c usbasp -B 1 -p m88 -e -D -U flash:w:hex/www.fischl.de_usbasp.atmega88.2011-05-28-pdi-FIXED.hex:i
 
 ====================================================================================================
 Modifying the Firmware
