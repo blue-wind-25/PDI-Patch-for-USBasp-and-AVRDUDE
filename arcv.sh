@@ -16,7 +16,7 @@ echo -e "Archiving files from the copied project tree ..."
 cd ..
 tar -cjvpf ${COPY_NAME}.tar.bz2 ${COPY_NAME} > /dev/null
 
-echo -e "Deleting the copied project tree ..."
-rm -rf ${COPY_NAME}
+#echo -e "Deleting the copied project tree ..."
+#rm -rf ${COPY_NAME}
 
 echo -e "Done '${COPY_NAME}.tar.bz2'"
