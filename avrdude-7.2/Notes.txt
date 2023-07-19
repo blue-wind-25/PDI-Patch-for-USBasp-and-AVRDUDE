@@ -1,0 +1,51 @@
+====================================================================================================
+General Notices
+====================================================================================================
+
+This patch is originally from:
+    https://github.com/nieldk/avrdude
+
+====================================================================================================
+Building the Program
+====================================================================================================
+
+Get the source:
+    cd work
+    wget https://github.com/avrdudes/avrdude/archive/refs/tags/v7.2.tar.gz
+    tar xvf v7.2.tar.gz
+or extract from the one included in this repository:
+    tar xvf ../avrdude-7.2.tar.gz
+
+Apply the patch:
+    cd avrdude-7.2
+    patch -p1 < ../../avrdude-7.2-usbasp-pdi-patch.diff
+
+Build and install:
+    cd src
+    ./bootstrap
+    mkdir build
+    cd build
+    ../configure --prefix=/opt/avrdude-7.2-usbasp-pdi
+    make
+    sudo make install
+
+Return to the parent directory:
+    cd ../../../../
+
+====================================================================================================
+Modifying the Program
+====================================================================================================
+
+If you want to recreate or modify the patch:
+    cd work
+    tar xvf ../avrdude-7.2.tar.gz
+    cp -Rv avrdude-7.2 avrdude-7.2-usbasp-pdi
+    cd avrdude-7.2-usbasp-pdi
+    patch -p1 < ../../avrdude-7.2-usbasp-pdi-patch.diff
+    ...
+    ... (modify some files and ensure all generated files are deleted)
+    ...
+    cd ..
+    diff -ruN avrdude-7.2 avrdude-7.2-usbasp-pdi > my_patch.diff
+
+====================================================================================================
