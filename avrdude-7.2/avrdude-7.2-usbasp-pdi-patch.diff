@@ -1,6 +1,6 @@
-diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
---- avrdude-7.1/src/usbasp.c	2023-01-09 04:28:14.000000000 +0700
-+++ avrdude-7.1-usbasp-pdi/src/usbasp.c	2023-06-01 06:50:24.000000000 +0700
+diff -ruN avrdude-7.2/src/usbasp.c avrdude-7.2-usbasp-pdi/src/usbasp.c
+--- avrdude-7.2/src/usbasp.c	2023-07-20 03:30:19.000000000 +0700
++++ avrdude-7.2-usbasp-pdi/src/usbasp.c	2023-07-20 05:39:10.033662685 +0700
 @@ -40,6 +40,8 @@
  #include "usbasp.h"
  #include "usbdevs.h"
@@ -10,7 +10,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
  #if defined(HAVE_LIBUSB) || defined(HAVE_LIBUSB_1_0)
  
  #ifdef HAVE_LIBUSB_1_0
-@@ -131,6 +133,8 @@
+@@ -133,6 +135,8 @@
  /*
   * Private data for this programmer.
   */
@@ -19,7 +19,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
  struct pdata
  {
  #ifdef USE_LIBUSB_1_0
-@@ -140,7 +144,7 @@
+@@ -142,7 +146,7 @@
  #endif
    int sckfreq_hz;
    unsigned int capabilities;
@@ -28,7 +28,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
    int section_e;
    int sck_3mhz;
  };
-@@ -199,65 +203,19 @@
+@@ -201,65 +205,19 @@
  static int usbasp_tpi_read_byte(const PROGRAMMER * pgm, const AVRPART *p, const AVRMEM *m, unsigned long addr, unsigned char *value);
  static int usbasp_tpi_write_byte(const PROGRAMMER *pgm, const AVRPART *p, const AVRMEM *m, unsigned long addr, unsigned char data);
  
@@ -107,7 +107,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
  
  /* Interface - management */
  static void usbasp_setup(PROGRAMMER * pgm)
-@@ -318,6 +276,10 @@
+@@ -326,6 +284,10 @@
    case USBASP_FUNC_TPI_READBLOCK:   return "USBASP_FUNC_TPI_READBLOCK";   break;
    case USBASP_FUNC_TPI_WRITEBLOCK:  return "USBASP_FUNC_TPI_WRITEBLOCK";  break;
    case USBASP_FUNC_GETCAPABILITIES: return "USBASP_FUNC_GETCAPABILITIES"; break;
@@ -118,7 +118,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
    default:                          return "Unknown USBASP function";     break;
    }
  }
-@@ -347,10 +309,10 @@
+@@ -355,10 +317,10 @@
  #ifdef USE_LIBUSB_1_0
    nbytes = libusb_control_transfer(PDATA(pgm)->usbhandle,
  				   (LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | (receive << 7)) & 0xff,
@@ -133,7 +133,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
  				   buffersize & 0xffff,
  				   5000);
    if(nbytes < 0){
-@@ -403,7 +365,7 @@
+@@ -411,7 +373,7 @@
          didUsbInit = 1;
          libusb_init(&ctx);
      }
@@ -142,7 +142,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
      libusb_device **dev_list;
      int dev_list_len = libusb_get_device_list(ctx, &dev_list);
  
-@@ -595,11 +557,19 @@
+@@ -603,11 +565,19 @@
    if (PDATA(pgm)->usbhandle!=NULL) {
      unsigned char temp[4];
      memset(temp, 0, sizeof(temp));
@@ -164,7 +164,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
      }
  
  #ifdef USE_LIBUSB_1_0
-@@ -638,7 +608,9 @@
+@@ -646,7 +616,9 @@
  // @@@
  
  /* Universal functions: for both SPI and TPI */
@@ -175,7 +175,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
    unsigned char temp[4];
    unsigned char res[4];
    IMPORT_PDATA(pgm);
-@@ -652,33 +624,82 @@
+@@ -660,33 +632,82 @@
    else
      pdata->capabilities = 0;
  
@@ -278,7 +278,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
  
    /* wait, so device is ready to receive commands */
    usleep(100000);
-@@ -771,7 +792,7 @@
+@@ -779,7 +800,7 @@
      return -2;
    }
  
@@ -287,7 +287,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
    if ((PDATA(pgm)->sckfreq_hz > 0) && (PDATA(pgm)->sckfreq_hz < 10000)) {
       blocksize = USBASP_READBLOCKSIZE / 10;
    } else {
-@@ -836,7 +857,7 @@
+@@ -844,7 +865,7 @@
      return -2;
    }
  
@@ -296,7 +296,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
    if ((PDATA(pgm)->sckfreq_hz > 0) && (PDATA(pgm)->sckfreq_hz < 10000)) {
       blocksize = USBASP_WRITEBLOCKSIZE / 10;
    } else {
-@@ -874,7 +895,7 @@
+@@ -882,7 +903,7 @@
  
      if (n != blocksize) {
        pmsg_error("wrong count at writing %x\n", n);
@@ -305,7 +305,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
      }
  
  
-@@ -1139,7 +1160,7 @@
+@@ -1147,7 +1168,7 @@
        pmsg_error("wrong reading bytes %x\n", n);
        return -3;
      }
@@ -314,7 +314,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
      readed += clen;
      pr += clen;
      dptr += clen;
-@@ -1204,7 +1225,7 @@
+@@ -1212,7 +1233,7 @@
        pmsg_error("wrong count at writing %x\n", n);
        return -3;
      }
@@ -323,7 +323,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
      writed += clen;
      pr += clen;
      sptr += clen;
-@@ -1249,6 +1270,281 @@
+@@ -1257,6 +1278,281 @@
  }
  
  
@@ -605,7 +605,7 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
  void usbasp_initpgm(PROGRAMMER *pgm) {
    strcpy(pgm->type, "usbasp");
  
-@@ -1260,25 +1556,25 @@
+@@ -1268,25 +1564,25 @@
    pgm->display        = usbasp_display;
    pgm->enable         = usbasp_enable;
    pgm->disable        = usbasp_disable;
@@ -640,9 +640,9 @@ diff -ruN avrdude-7.1/src/usbasp.c avrdude-7.1-usbasp-pdi/src/usbasp.c
  }
  
  
-diff -ruN avrdude-7.1/src/usbasp.h avrdude-7.1-usbasp-pdi/src/usbasp.h
---- avrdude-7.1/src/usbasp.h	2023-01-09 04:28:14.000000000 +0700
-+++ avrdude-7.1-usbasp-pdi/src/usbasp.h	2023-06-01 06:14:33.000000000 +0700
+diff -ruN avrdude-7.2/src/usbasp.h avrdude-7.2-usbasp-pdi/src/usbasp.h
+--- avrdude-7.2/src/usbasp.h	2023-07-20 03:30:19.000000000 +0700
++++ avrdude-7.2-usbasp-pdi/src/usbasp.h	2023-07-20 05:39:10.033662685 +0700
 @@ -21,6 +21,16 @@
  #ifndef usbasp_h
  #define usbasp_h
@@ -686,9 +686,9 @@ diff -ruN avrdude-7.1/src/usbasp.h avrdude-7.1-usbasp-pdi/src/usbasp.h
  /* ISP SCK speed identifiers */
  #define USBASP_ISP_SCK_AUTO   0
  #define USBASP_ISP_SCK_0_5    1   /* 500 Hz */
-diff -ruN avrdude-7.1/src/xmega_pdi.h avrdude-7.1-usbasp-pdi/src/xmega_pdi.h
---- avrdude-7.1/src/xmega_pdi.h	1970-01-01 07:00:00.000000000 +0700
-+++ avrdude-7.1-usbasp-pdi/src/xmega_pdi.h	2023-05-28 06:13:25.000000000 +0700
+diff -ruN avrdude-7.2/src/xmega_pdi.h avrdude-7.2-usbasp-pdi/src/xmega_pdi.h
+--- avrdude-7.2/src/xmega_pdi.h	1970-01-01 07:00:00.000000000 +0700
++++ avrdude-7.2-usbasp-pdi/src/xmega_pdi.h	2023-07-20 05:39:10.034662685 +0700
 @@ -0,0 +1,101 @@
 +#ifndef _XMEGA_PDI_H_
 +#define _XMEGA_PDI_H_

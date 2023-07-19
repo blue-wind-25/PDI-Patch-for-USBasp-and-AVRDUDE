@@ -3,6 +3,7 @@ COPY_NAME=PDI-Patch-for-USBasp-and-AVRDUDE-GIT-`date +'%Y%m%d-%H%M'`
 echo -e "Cleaning the project tree ..."
 rm -rf usbasp.2011-05-28/work/*
 rm -rf avrdude-7.1/work/*
+rm -rf avrdude-7.2/work/*
 
 echo -e "Copying the project tree ..."
 cd ..

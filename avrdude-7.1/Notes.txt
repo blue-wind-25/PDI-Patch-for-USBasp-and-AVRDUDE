@@ -5,8 +5,6 @@ General Notices
 This patch is originally from:
     https://github.com/nieldk/avrdude
 
-In the instructions below, please adjust the version number '7.1' as required.
-
 ====================================================================================================
 Building the Program
 ====================================================================================================
