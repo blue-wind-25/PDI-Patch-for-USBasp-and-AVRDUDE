@@ -54,6 +54,21 @@ or:
     avrdude -c usbasp -B 1 -p m88 -e -D -U flash:w:hex/www.fischl.de_usbasp.atmega88.2011-05-28-pdi-FIXED.hex:i
 
 ====================================================================================================
+Building and Flashing the Secondary Firmware
+====================================================================================================
+
+The secondary firmware can be built by executing the steps above, but with a different patch file:
+    usbasp-pdi-usbaspfirmware-20120816-FIXED-spimode1_rsth.diff
+
+This secondary firmware would allow USBasp to also program (flash) AT89S51, AT89S52, and AT89S8253.
+
+----------------------------------------------------------------------------------------------------
+
+The precompiled HEX files for this secondary firmware are:
+    www.fischl.de_usbasp.atmega8.2011-05-28-pdi-FIXED-spimode1_rsth.hex
+    www.fischl.de_usbasp.atmega88.2011-05-28-pdi-FIXED-spimode1_rsth.hex
+
+====================================================================================================
 Modifying the Firmware
 ====================================================================================================
 
