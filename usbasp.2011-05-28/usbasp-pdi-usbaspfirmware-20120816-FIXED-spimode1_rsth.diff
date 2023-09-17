@@ -1,6 +1,6 @@
 diff -ruN usbasp.2011-05-28/firmware/isp.c usbasp.2011-05-28-pdi-spimode1_rsth/firmware/isp.c
 --- usbasp.2011-05-28/firmware/isp.c	2011-01-20 01:18:00.000000000 +0700
-+++ usbasp.2011-05-28-pdi-spimode1_rsth/firmware/isp.c	2023-09-16 06:46:15.034018607 +0700
++++ usbasp.2011-05-28-pdi-spimode1_rsth/firmware/isp.c	2023-09-18 06:20:08.006312004 +0700
 @@ -21,7 +21,12 @@
  uchar sck_spsr;
  uchar isp_hiaddr;
@@ -172,7 +172,7 @@ diff -ruN usbasp.2011-05-28/firmware/isp.c usbasp.2011-05-28-pdi-spimode1_rsth/f
 +
 +			rst_high  = r;  // @@@ @@@ @@@
 +			spi_mode1 = m;  // @@@ @@@ @@@
-+			count     = 16; // @@@ @@@ @@@
++			count     = 32; // @@@ @@@ @@@
 +
 +			while (count--) {
 +				ispTransmit(0xAC);
