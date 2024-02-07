@@ -1,0 +1,56 @@
+====================================================================================================
+General Notices
+====================================================================================================
+
+This patch is originally from:
+    https://github.com/nieldk/avrdude
+
+====================================================================================================
+Building the Program
+====================================================================================================
+
+Get the source:
+    cd work
+    wget https://github.com/avrdudes/avrdude/archive/refs/tags/v7.3.tar.gz
+    tar xvf v7.3.tar.gz
+or extract from the one included in this repository:
+    tar xvf ../avrdude-7.3.tar.gz
+
+Apply the patch:
+    cd avrdude-7.3
+    patch -p1 < ../../avrdude-7.3-usbasp-pdi-patch.diff
+
+Build and install:
+    cd src
+    ./bootstrap
+    mkdir build
+    cd build
+    ../configure --prefix=/opt/avrdude-7.3-usbasp-pdi
+    make
+    sudo make install
+
+Return to the parent directory:
+    cd ../../../../
+
+In case you need to use a custom GCC, do not forget to set the appropriate environment variables,
+for example:
+    export CC=/opt/gcc-7.5.0/bin/gcc
+    export CPP=/opt/gcc-7.5.0/bin/cpp
+
+====================================================================================================
+Modifying the Program
+====================================================================================================
+
+If you want to recreate or modify the patch:
+    cd work
+    tar xvf ../avrdude-7.3.tar.gz
+    cp -Rv avrdude-7.3 avrdude-7.3-usbasp-pdi
+    cd avrdude-7.3-usbasp-pdi
+    patch -p1 < ../../avrdude-7.3-usbasp-pdi-patch.diff
+    ...
+    ... (modify some files and ensure all generated files are deleted)
+    ...
+    cd ..
+    diff -ruN avrdude-7.3 avrdude-7.3-usbasp-pdi > my_patch.diff
+
+====================================================================================================
