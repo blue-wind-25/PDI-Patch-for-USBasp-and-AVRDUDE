@@ -1,0 +1,53 @@
+====================================================================================================
+General Notices
+====================================================================================================
+
+This patch is originally from:
+    https://github.com/nieldk/avrdude
+
+====================================================================================================
+Building the Program
+====================================================================================================
+
+Get the source:
+    cd work
+    wget https://github.com/avrdudes/avrdude/archive/refs/tags/v8.0.tar.gz
+    tar xvf v8.0.tar.gz
+or extract from the one included in this repository:
+    tar xvf ../avrdude-8.0.tar.gz
+
+Apply the patch:
+    cd avrdude-8.0
+    patch -p1 < ../../avrdude-8.0-usbasp-pdi-patch.diff
+
+Build and install:
+    mkdir build
+    cd build
+    cmake -DCMAKE_INSTALL_PREFIX:PATH=/opt/avrdude-8.0-usbasp-pdi ..
+    make all
+    sudo make install
+
+Return to the parent directory:
+    cd ../../
+
+In case you need to use a custom GCC, do not forget to set the appropriate variables, for example:
+    -DCMAKE_C_COMPILER=/opt/gcc-7.5.0/bin/gcc
+    -DCMAKE_CXX_COMPILER=/opt/gcc-7.5.0/bin/cpp
+
+====================================================================================================
+Modifying the Program
+====================================================================================================
+
+If you want to recreate or modify the patch:
+    cd work
+    tar xvf ../avrdude-8.0.tar.gz
+    cp -Rv avrdude-8.0 avrdude-8.0-usbasp-pdi
+    cd avrdude-8.0-usbasp-pdi
+    patch -p1 < ../../avrdude-8.0-usbasp-pdi-patch.diff
+    ...
+    ... (modify some files and ensure all generated files are deleted)
+    ...
+    cd ..
+    diff -ruZN avrdude-8.0 avrdude-8.0-usbasp-pdi > my_patch.diff
+
+====================================================================================================
