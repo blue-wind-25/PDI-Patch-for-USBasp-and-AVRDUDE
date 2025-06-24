@@ -5,6 +5,15 @@ The original PDI patches for USBasp and AVRDUDE are old and contain bugs.
 **This repository contains the fixed patches.**
 
 ---
+
+Due to several reasons:
+- The USBasp hardware design is outdated and may not function reliably with modern motherboards, operating systems, or PCs.
+- Developers working with ATxmega MCUs typically use more advanced tools than USBasp, such as Atmel-ICE.
+- I have also developed my own custom programmer that supports ATxmega MCUs, as well as other MCUs.
+As a result, updates to this repository have been placed on the back burner. It may be archived entirely in the future.
+
+---
+---
 ---
 
 ### Links to Web Pages Containing Informations about the Original Source Code and Patches
